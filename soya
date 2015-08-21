@@ -1,0 +1,210 @@
+#!/usr/bin/ruby
+#
+require 'json'
+require 'optparse'
+require 'safe_yaml'
+
+VERSION = '0.5'
+
+$PROGRAM_BASENAME = File.basename($PROGRAM_NAME)
+SafeYAML::OPTIONS[:default_mode] = :safe
+
+# Defaults
+@options = {
+  :strict  => false,
+  :from    => :yaml,
+  :to      => :yaml,
+  :define  => [],
+  :copy    => [],
+  :extract => '',
+  :insert  => '',
+  :verbose => false
+}
+
+def parse_args!(args)
+  OptionParser.new do |opt|
+    opt.version = VERSION
+    opt.banner = "Usage: #{$PROGRAM_BASENAME} [OPTION]... [FILE]..."
+    opt.separator("\n")
+    # TODO: Merging is complicated and lots of potential corner cases. Keeping it simple for now (aka worse-is-better). But we could try to merge arrays.
+    opt.on('-s', '--[no-]strict', 'Strict mode (error on duplicate keys)') { |v| @options[:strict] = v }
+    # TODO:
+    # - Support HOCON <https://github.com/typesafehub/config/blob/master/HOCON.md>
+    # - Support a minified JSON as an output format.
+    opt.on('-f', '--from=format', [:json, :yaml], 'Input/from file format [json, yaml (default)]') { |v| @options[:from] = v }
+    opt.on('-t', '--to=format', [:json, :yaml], 'Output/to file format [json, yaml (default)]') { |v| @options[:to] = v }
+    opt.separator("\n")
+    opt.on('-D', '--define=KEY=VALUE', 'Define an element') { |v| @options[:define] << v }
+    opt.on('-c', '--copy=DEST=SRC', 'Copy an element') { |v| @options[:copy] << v }
+    opt.on('-e', '--extract=KEY', 'Only output a sub-tree') { |v| @options[:extract] = v }
+    opt.on('-i', '--insert=KEY', 'Output everything under a common-key') { |v| @options[:insert] = v }
+    opt.separator("\n")
+    opt.on('-v', '--verbose', 'Verbose mode') { |v| @options[:verbose] = v }
+    opt.on('-V', '--version', 'Display version') { |v| $stderr.puts opt.ver; exit 0 }
+    opt.on('-h', '--help', 'Display help') { |v| $stderr.puts opt.help; exit 0 }
+    opt.separator("\n")
+    opt.separator('Processing order: merge, definition, copying, extraction, insertion')
+    opt.parse!(args)
+  end
+end
+
+def open_file(filename)
+  return (filename == '-') ? $stdin : File.open(filename, 'rb')
+end
+
+def load(filename)
+  contents = open_file(filename).read
+
+  if (@options[:from] == :json)
+    return JSON.load(contents)
+  elsif (@options[:from] == :yaml || @options[:from] == :yml)
+    return YAML.load(contents)
+  else
+    return {}
+  end
+end
+
+def merge_strategy(key, v1, v2)
+  if (Hash === v1 && Hash === v2)
+    return v1.merge(v2, &method(:merge_strategy))
+  elsif @options[:strict]
+    raise(RuntimeError.new("duplicate keys: #{key}"))
+  else
+    return v2
+  end
+end
+
+def process_definition(e)
+  # Key names cannot have either '.' or '='. A plausible extension
+  # would be to handle key names like: key_a."key.b".key-c
+  (keys, value) = e.split('=', 2)
+  last = parse_expression(value)
+  keys.split('.', -1).reverse_each do |key|
+    if key == ''
+      raise RuntimeError.new("error: empty key: #{keys}")
+    end
+    last = { key => last }
+  end
+  return last
+end
+
+def copying(hash)
+  @options[:copy].each do |e|
+    (destination, source) = e.split('=', 2)
+    ## Without Marshalling -- Ruby will create anchors/references for YAML output.
+    subtree = insertion(destination, Marshal.load(Marshal.dump(extraction(source, hash))))
+    hash = hash.merge(subtree, &method(:merge_strategy))
+  end
+  return hash
+end
+
+def extraction(keys, hash)
+  keys.split('.', -1).each do |key|
+    if Hash === hash && hash.has_key?(key)
+      hash = hash[key]
+    elsif Array === hash && /^\d+$/.match(key)
+      hash = hash[key.to_i]
+    else
+      raise RuntimeError.new("error: invalid extraction key: #{key}")
+    end
+  end
+  return hash
+end
+
+def insertion(keys, hash)
+  last = hash
+  keys.split('.', -1).reverse_each do |key|
+    if key == ''
+      raise RuntimeError.new("error: empty key: #{keys}")
+    end
+    last = { key => last }
+  end
+  return last
+end
+
+def verbose(message)
+  if @options[:verbose]
+    $stderr.puts message
+  end
+end
+
+def fixnum?(e)
+  ## Really big numbers should perhaps be considered a string.
+  /^-?\d+$/.match(e) && !/^-?0\d/.match(e)
+end
+
+def float?(e)
+  /^-?\d+(\.\d+)?([eE][-+]?\d+)?$/.match(e) && !/^-?0\d/.match(e) && !/[eE][-+]?0\d+/.match(e)
+end
+
+def array?(e)
+  ## [BUG]: Arrays of Arrays with more than a single element aren't supported. I think I need a recursive descent parser.
+  ## I need to work out how to parse {}, [], "", '' and ,
+  /^\[(?<array>.*)\]$/.match(e)
+end
+
+def string_double_quoted?(e)
+  /^\"(?<string>.*)\"$/.match(e)
+end
+
+def string_single_quoted?(e)
+  /^\'(?<string>.*)\'$/.match(e)
+end
+
+def parse_expression(e, s="")
+  ## TODO: Have a class to both detect whether it matches a type as well as extract its value.
+  if (e == 'true')
+    verbose("#{s}True: #{e}")
+    return true
+  elsif (e == 'false')
+    verbose("#{s}False: #{e}")
+    return false
+  elsif (e == 'null')
+    verbose("#{s}Null: #{e}")
+    return nil
+  elsif (fixnum?(e))
+    verbose("#{s}Fixnum: #{e}")
+    return e.to_i
+  elsif (float?(e))
+    verbose("#{s}Float: #{e}")
+    return e.to_f
+  elsif (match = array?(e))
+    verbose("#{s}Array: #{e} #{match[:array]}")
+    return match[:array].split(/\s*,\s*/, -1).map { |x| parse_expression(x, s + "  ") }
+  elsif (match = string_double_quoted?(e))
+    verbose("#{s}String: #{e} #{match[:string]}")
+    return match[:string]
+  elsif (match = string_single_quoted?(e))
+    verbose("#{s}String: #{e} #{match[:string]}")
+    return match[:string]
+  else
+    verbose("#{s}String: #{e}")
+    return e
+  end
+end
+
+begin
+  parse_args!(ARGV)
+  file_hashes = ((ARGV.empty? && @options[:define].empty?) ? ['-'] : ARGV).map { |filename| load(filename) }
+  expression_hashes = @options[:define].map { |definition| process_definition(definition) }
+
+  top_hash = (file_hashes + expression_hashes).reduce { |a, e| a.merge(e, &method(:merge_strategy)) } || {}
+  top_hash = insertion(@options[:insert], extraction(@options[:extract], copying(top_hash)))
+
+  if @options[:to] == :json
+    if Hash === top_hash || Array === top_hash
+      puts JSON.pretty_generate(top_hash)
+    else
+      puts top_hash
+    end
+  elsif @options[:to] == :yaml || @options[:to] == :yml
+    puts top_hash.to_yaml
+  else
+    # Do nothing
+  end
+rescue => e
+  $stderr.puts "#{$PROGRAM_BASENAME}: #{e.to_s}"
+  verbose(e.backtrace)
+  ## Hmm, all errors get the same return code. Fix?
+  exit 1
+end

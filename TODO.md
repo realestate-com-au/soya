@@ -1,0 +1,14 @@
+- Make a gem and published and include dependencies
+- .ruby-version
+- make clear that the -f/-t commands are option
+- Install instructions don't assume soya is in path
+- Give an example with no stdin and 3 input files
+- Add a comment to describe what sed does.
+- "key" should be called "path"
+- "insert" maybe "parent"
+- DELETE THE DELETION
+- parse is cryptic. Separate into separate files? Easy if it's a gem
+- TODO.md
+- Look into http://jmespath.org/
+- Refactor the entire program into multiple classes.
+- Change the command line interface before making version 1.0.
