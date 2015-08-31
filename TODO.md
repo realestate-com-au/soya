@@ -1,14 +1,14 @@
-- Make a gem and published and include dependencies
-- .ruby-version
-- make clear that the -f/-t commands are option
-- Install instructions don't assume soya is in path
-- Give an example with no stdin and 3 input files
-- Add a comment to describe what sed does.
-- "key" should be called "path"
-- "insert" maybe "parent"
-- DELETE THE DELETION
-- parse is cryptic. Separate into separate files? Easy if it's a gem
-- TODO.md
-- Look into http://jmespath.org/
-- Refactor the entire program into multiple classes.
-- Change the command line interface before making version 1.0.
+- Clarify the syntax of paths. Support keys (ie sub-paths) with spaces in them by using quotation marks.
+- Update the definition-expression syntax for arrays/objects and not simply rely on the JSON parser. For example, I'd like to support quoteless strings.
+- Improve the deletion code.
+- Write spec tests, especially for paths and expressions.
+- Can I support binary/octal/hexadecimal in my integer class?
+- Extract and Delete are two sides of the same coin.
+-- Any chance of writing an iterator converting the hash into an array of 2-tuple [(path_1,value_1), (path_2,value_2), ...] etc
+- An iterator allows me write a different kind of output format, but it'll need to wait until the path syntax is more refined
+-- Deletion is then simply a: grep -v "^$path" (kinda, ignoring some corner cases)
+-- Extraction is: grep "^${path}" | sed -e "s/^${path}\.//"
+-- Insertion is: sed -e "s/^/${path}./"
+-- Definition is: echo "${path}=${value}"
+-- Canonicalisation is: sort
+- I think extract should also accept a list of paths

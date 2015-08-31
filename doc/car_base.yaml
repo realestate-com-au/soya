@@ -1,0 +1,10 @@
+---
+brand: Hyundai
+model: i30
+year: 2014
+engine:
+  type: Nu
+  capacity: 1.8
+options:
+  camera: true
+  gps: false

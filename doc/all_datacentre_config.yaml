@@ -1,0 +1,10 @@
+---
+datacentre:
+  production:
+    location: Berlin
+    subnet: 10.40.220.0/24
+    ip: 10.40.220.32
+  development:
+    location: Springvale
+    subnet: 192.168.114.0/24
+    ip: 192.168.114.21

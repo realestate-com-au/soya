@@ -1,0 +1,7 @@
+require 'soya/action/canonical'
+require 'soya/action/copying'
+require 'soya/action/definition'
+require 'soya/action/deletion'
+require 'soya/action/extraction'
+require 'soya/action/insertion'
+require 'soya/action/output'

@@ -1,0 +1,8 @@
+---
+application:
+  mailpile:
+    name: mailpile
+    user: mailpile
+    group: mailpile
+    min_children: 5
+    max_children: 20
