@@ -1,4 +1,6 @@
+require 'optparse'
 require 'soya/version'
+require 'soya/error'
 
 module Soya
   class CliParser

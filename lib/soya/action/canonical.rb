@@ -1,5 +1,3 @@
-require 'soya/error'
-
 module Soya
   module Action
     class Canonical

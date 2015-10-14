@@ -1,3 +1,5 @@
+require 'soya/error'
+
 module Soya
   class Path
     attr_reader :components

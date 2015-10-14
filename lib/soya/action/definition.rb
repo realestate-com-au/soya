@@ -1,4 +1,3 @@
-require 'soya/error'
 require 'soya/expression'
 require 'soya/action/insertion'
 

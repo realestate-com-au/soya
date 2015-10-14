@@ -71,7 +71,7 @@ This code is copyrighted under the MIT license.
     PATH is a dot-delimited list of keys.
 
     $ soya -V
-    soya 0.9.1
+    soya 0.9.2
 
 
 ### Let's create a sample file

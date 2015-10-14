@@ -1,3 +1,4 @@
+require 'soya'
 require 'soya/error'
 require 'soya/path'
 

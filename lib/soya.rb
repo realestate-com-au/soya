@@ -1,12 +1,9 @@
 require 'json'
-require 'optparse'
 require 'safe_yaml'
 
 require 'soya/actions'
 require 'soya/cli_parser'
 require 'soya/error'
-require 'soya/expression'
-require 'soya/version'
 
 module Soya
   @@options = {}

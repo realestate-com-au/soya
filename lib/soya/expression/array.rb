@@ -1,3 +1,4 @@
+require 'json'
 require 'soya/error'
 
 module Soya

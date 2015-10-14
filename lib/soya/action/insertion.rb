@@ -1,4 +1,4 @@
-require 'soya/error'
+require 'soya'
 require 'soya/path'
 
 module Soya
